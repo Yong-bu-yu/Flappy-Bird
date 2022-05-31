@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body style="user-select: none;">
+    <div style="display: flex;position: relative;width: 100%;height: 100%;justify-content: center;">
+        <canvas id="canvas"></canvas>
+        <!-- <audio src="./music/game_music.mp3" loop></audio> -->
+    </div>
+</body>
+
+<script type="module">
+    import {
+        GameObject, GameObjectCollider2D,
+        GameObjectButton, GameObjectRigidBody2D,
+        GameObjectManager
+    } from './js/GameObject.js'
+    //背景组件
+    let bg = new GameObject('bg')
+    let bgImgs
+    let bgx1, bgx2
+    //标题组件
+    let fly = 0
+    let title = new GameObject('title')
+    let bird = new GameObject('bird')
+    //开始按钮
+    let start = new GameObject('start')
+    //管道朝口下
+    let down_pipe = new GameObject('down_pipe')
+    let down_mod = new GameObject('down_pipe')
+    //管道朝口上
+    let up_pipe = new GameObject('up_pipe')
+    let up_mod = new GameObject('up_pipe')
+
+    //向下飞的小鸟
+    let down_bird = new GameObject('down_bird')
+    //向上飞的小鸟
+    let up_bird = new GameObject('up_bird')
+
+    let oldTime = Date.now(), nowTime
+
+    //地面
+    let banner = new GameObject('banner')
+    //判定
+    let add = new GameObject('add')
+    //数字
+    let nums = new Array()
+    let fraction = 0
+    let Fraction = new Array()
+    //游戏结束
+    let gameOver = new GameObject('gameOver')
+
+    let elCanvas = document.getElementById('canvas')
+    let canvas = elCanvas.getContext('2d')
+
+    async function drawImage(image, x, y, width, height) {
+        canvas.drawImage(image, x, y, width, height)
+    }
+
+    async function update() {
+        //背景滚动
+        if (Math.abs(bgx1) == bgImgs[0].width && bgx2 == 0)
+            bgx1 = bgImgs[1].width, bgx2 = 0
+        bg.point.x = bgx1, bg.point.y = 0
+        await drawImage(bgImgs[0], bgx1--, 0, bgImgs[0].width, bgImgs[0].height)
+        await drawImage(bgImgs[1], bgx2--, 0, bgImgs[1].width, bgImgs[1].height)
+        if (bgx1 == 0 && Math.abs(bgx2) == bgImgs[1].width)
+            bgx1 = 0, bgx2 = bgImgs[1].width
+
+        //标题
+        if (fly > -3)
+            fly -= 0.1
+        else
+            fly = 0
+        title.point.x = bgImgs[0].width / 4, title.point.y = bgImgs[0].height / 4 + fly
+        await title.Draw()
+        bird.point.x = bgImgs[0].width / 1.5, bird.point.y = bgImgs[0].height / 4 + fly
+        await bird.Draw()
+        //开始按钮
+        start.point.x = bgImgs[0].width / 2.6, start.point.y = bgImgs[0].width / 1.2
+        await start.Draw()
+        if (!start.isShow)
+            await RandowPipe()
+        await banner.Draw(0, 423)
+        await gameOver.Draw(60, 210)
+        // await gameMusicAudio.Play()
+        requestAnimationFrame(update)
+    }
+
+    async function RandowPipe() {
+        nowTime = Date.now()
+        let time = nowTime - oldTime
+        let ranY = Math.random() * 350 + 60
+        let arr = new Array()
+        if (up_pipe.point.x <= 0) {
+            add.value++
+            up_pipe.point.x = bg.size.width
+            down_pipe.point.x = bg.size.width
+            up_pipe.point.y = ranY - 160
+            down_pipe.point.y = ranY >= 363 ? 363 : ranY
+            if (up_pipe.point.y >= 0 || (363 - down_pipe.point.y >= 0)) {
+                let up = parseInt(up_pipe.point.y / 2)
+                let down = parseInt((363 - down_pipe.point.y) / 2)
+                if (up_pipe.point.y >= 0) {
+                    up_mod.point.y = 0
+                    up_mod.size.height = up_pipe.point.y
+                    add.point.y = up_pipe.point.y + 60
+                    add.size.height = 100
+                }
+                else {
+                    up_mod.size.height = 0
+                    add.point.y = up_pipe.point.y + up_pipe.size.height
+                }
+                if (363 - down_pipe.point.y >= 0) {
+                    down_mod.point.y = down_pipe.point.y + down_pipe.size.height
+                    down_mod.size.height = 363 - down_pipe.point.y
+                }
+                else {
+                    down_mod.size.height = 0
+                }
+            }
+        }
+        //管道
+        up_pipe.point.x -= 0.75
+        up_mod.point.x = up_pipe.point.x
+        down_pipe.point.x -= 0.75
+        down_mod.point.x = down_pipe.point.x
+        add.point.x = up_pipe.point.x + 8
+        up_pipe.Draw()
+        down_pipe.Draw()
+        up_mod.Draw()
+        down_mod.Draw()
+        add.Draw()
+        down_bird.Draw()
+        up_bird.Draw()
+        await Num()
+        Fraction.forEach(v => v.Draw())
+    }
+
+    async function Num() {
+        let f = fraction
+        let count = 0
+        Fraction = []
+        while (f != 0) {
+            count++
+            let n = parseInt(f % 10)
+            f = parseInt(f / 10)
+            let gameObject = nums[n]
+            gameObject.point.x = bg.size.width - gameObject.size.width * count - 10
+            if (Fraction.length != count)
+                Fraction.push(gameObject)
+        }
+    }
+
+    (async function load() {
+        let gameMusic = document.createElement('audio')
+        gameMusic.src = './music/game_music.mp3'
+        gameMusic.setAttribute('loop', '');
+        gameMusic.play();
+
+        let game_over = document.createElement('audio')
+        game_over.src = './music/game_over.mp3'
+
+        let bullet = document.createElement('audio')
+        bullet.src = './music/bullet.mp3'
+
+        //载入背景
+        bg.imagesSrc.push('./images/bg.jpg')
+        bg.imagesSrc.push('./images/bg2.jpg')
+        await bg.getComponent()
+        bgImgs = await bg.getImages()
+        bgx1 = 0, bgx2 = bgImgs[1].width
+        //载入标题
+        title.imagesSrc.push('./images/head.jpg')
+        await title.getComponent()
+        title.canvas = canvas
+        bird.imagesSrc.push('./images/bird0.png')
+        bird.imagesSrc.push('./images/bird1.png')
+        await bird.getComponent()
+        bird.canvas = canvas
+        //载入开始按钮
+        start.imagesSrc.push('./images/start.jpg')
+        await start.getComponent()
+        start.canvas = canvas
+        start.elCanvas = elCanvas
+        let startButton = new GameObjectButton(start)
+        start.component.push(startButton)
+        startButton.click = async function (event) {
+            title.isShow = false
+            bird.isShow = false
+            start.isShow = false
+            down_bird.isShow = true
+        };
+        //载入管道
+        //下管道
+        down_pipe.imagesSrc.push('./images/down_pipe.png')
+        await down_pipe.getComponent()
+        down_pipe.canvas = canvas
+        down_pipe.component.push(new GameObjectCollider2D(down_pipe))
+        down_pipe.point.x = bg.size.width
+        down_mod.imagesSrc.push('./images/down_mod.png')
+        await down_mod.getComponent()
+        down_mod.canvas = canvas
+        down_mod.component.push(new GameObjectCollider2D(down_mod))
+        down_mod.point.x = bg.size.width
+
+        //上管道
+        up_pipe.imagesSrc.push('./images/up_pipe.png')
+        await up_pipe.getComponent()
+        up_pipe.canvas = canvas
+        up_pipe.component.push(new GameObjectCollider2D(up_pipe))
+        up_mod.component.push(new GameObjectCollider2D(up_mod))
+        up_pipe.point.x = bg.size.width
+        up_pipe.point.y = Math.random() * 60 + 60
+        down_pipe.point.y = up_pipe.point.y + 160
+        down_mod.point.y = down_pipe.point.y + down_pipe.size.height
+        down_mod.size.height = 363 - down_pipe.point.y <= 0 ? 0 : 363 - down_pipe.point.y
+
+        up_mod.imagesSrc.push('./images/up_mod.png')
+        await up_mod.getComponent()
+        up_mod.canvas = canvas
+        up_mod.point.x = bg.size.width
+        up_mod.point.y = 0
+        up_mod.size.height = up_pipe.point.y
+
+        //载入运动的小鸟
+        down_bird.imagesSrc.push('./images/down_bird0.png')
+        down_bird.imagesSrc.push('./images/down_bird1.png')
+        await down_bird.getComponent()
+        down_bird.canvas = canvas
+        down_bird.isShow = false
+        let collider2D_down = new GameObjectCollider2D(down_bird)
+        collider2D_down.isTrigger = true
+        down_bird.component.push(collider2D_down)
+        let rigidBody2D_down = new GameObjectRigidBody2D(down_bird)
+        down_bird.component.push(rigidBody2D_down);
+        down_bird.point.x = 60
+        rigidBody2D_down.m = 1
+        collider2D_down.onTriggerStay = function (event) {
+            if (event.name == 'add') {
+                fraction = add.value
+            }
+            if (event.name == 'banner' ||
+                event.name == 'up_pipe' ||
+                event.name == 'down_pipe') {
+                gameOver.isShow = true
+                GameObjectManager.time = 0
+                up_bird.isShow = false
+                down_bird.isShow = false
+                up_pipe.isShow = false
+                up_mod.isShow = false
+                down_pipe.isShow = false
+                down_mod.isShow = false
+                game_over.play()
+            }
+        }
+        up_bird.imagesSrc.push('./images/up_bird0.png')
+        up_bird.imagesSrc.push('./images/up_bird1.png')
+        await up_bird.getComponent()
+        up_bird.canvas = canvas
+        up_bird.isShow = false
+        let collider2D_up = new GameObjectCollider2D(up_bird)
+        collider2D_up.isTrigger = true
+        up_bird.component.push(collider2D_up)
+        up_bird.isShow = false
+        up_bird.point.x = 60
+        //地面
+        banner.imagesSrc.push('./images/transparent.png')
+        await banner.getComponent()
+        banner.canvas = canvas
+        banner.size.width = bg.size.width
+        banner.size.height += 57
+        banner.component.push(new GameObjectCollider2D(banner))
+
+        //载入add
+        add.imagesSrc.push('./images/transparent.png')
+        await add.getComponent()
+        add.canvas = canvas
+        add.size.width = 45
+        add.size.height = 100
+        add.point.y = up_pipe.point.y + up_pipe.size.height
+        add.value = 1
+        add.component.push(new GameObjectCollider2D(add))
+
+        //设置画布大小
+        elCanvas.setAttribute("width", bg.size.width + "px")
+        elCanvas.setAttribute("height", bg.size.height + "px")
+        elCanvas.onmousedown = function (event) {
+            if (!gameOver.isShow) {
+                up_bird.isShow = true
+                down_bird.isShow = false
+                up_bird.point.y = down_bird.point.y
+                bullet.play()
+                if (up_bird.isShow)
+                    rigidBody2D_down.addForce(down_bird)
+            }
+        }
+        elCanvas.onmouseup = function (event) {
+            if (!gameOver.isShow) {
+                up_bird.isShow = false
+                down_bird.isShow = true
+                rigidBody2D_down.G = 9.8
+            }
+        }
+
+        //载入数字
+        for (let index = 0; index < 10; index++) {
+            let num = new GameObject(`${index}`)
+            num.imagesSrc.push(`./images/${index}.jpg`)
+            await num.getComponent()
+            num.canvas = canvas
+            num.point.x = bg.size.width - num.size.width - 10
+            num.point.y = 10
+            nums.push(num)
+        }
+
+        //载入gameover
+        gameOver.imagesSrc.push('./images/gameover.png')
+        await gameOver.getComponent()
+        gameOver.canvas = canvas
+        gameOver.isShow = false
+
+        await update()
+    })()
+</script>
+
+</html>
